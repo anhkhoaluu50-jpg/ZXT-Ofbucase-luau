@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Lua Offline Encoder</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#050509;color:#eaeaf2;min-height:100vh;padding:20px}
+.container{max-width:900px;margin:0 auto}
+header{text-align:center;padding:20px 0 30px}
+h1{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,#00d4ff,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.sub{color:#6b6b85;font-size:.85rem}
+.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:768px){.editor-grid{grid-template-columns:1fr}}
+.box{background:#0d0d15;border:1px solid rgba(255,255,255,.06);border-radius:16px;overflow:hidden}
+.box-head{padding:14px 18px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(255,255,255,.06)}
+.box-head span{font-size:.8rem;font-weight:700;color:#00d4ff;text-transform:uppercase}
+textarea{width:100%;height:350px;background:#06060b;border:none;padding:16px;color:#eaeaf2;font-family:monospace;font-size:13px;resize:vertical;outline:none}
+.btn{padding:14px;border:none;border-radius:12px;font-family:inherit;font-size:.95rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:10px;color:#fff}
+.btn-primary{background:linear-gradient(135deg,#00d4ff,#a855f7)}
+.btn-success{background:linear-gradient(135deg,#22c55e,#16a34a);display:none}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Lua Offline Encoder VIP</h1>
+<p class="sub">Mã hóa độc lập - Vĩnh viễn - Không cần Server</p>
+</header>
+<div class="editor-grid">
+<div class="box">
+<div class="box-head"><span>📥 Code Gốc (Lua)</span></div>
+<textarea id="inputCode" placeholder="Dán code Lua gốc vào đây..."></textarea>
+</div>
+<div class="box">
+<div class="box-head"><span>📤 Loadstring Độc Lập</span></div>
+<textarea id="outputCode" placeholder="Loadstring sẽ xuất hiện ở đây..." readonly></textarea>
+</div>
+</div>
+<button class="btn btn-primary" id="btnEncode" onclick="encode()">⚡ Mã Hóa Ngay</button>
+<button class="btn btn-success" id="btnCopy" onclick="copyOutput()">📋 Copy Loadstring</button>
+</div>
+<script>
+async function encode(){
+    var code = document.getElementById("inputCode").value.trim();
+    if(!code){ alert("Vui lòng nhập code!"); return; }
+    var btn = document.getElementById("btnEncode");
+    btn.innerText = "Đang mã hóa..."; btn.disabled = true;
+    try {
+        var res = await fetch("/api/encode", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({code: code})
+        });
+        var data = await res.json();
+        if(data.ok){
+            document.getElementById("outputCode").value = data.standalone_code;
+            document.getElementById("btnCopy").style.display = "block";
+        } else { alert("Lỗi: " + data.error); }
+    } catch(e) { alert("Lỗi kết nối!"); }
+    finally { btn.innerText = "⚡ Mã Hóa Ngay"; btn.disabled = false; }
+}
+function copyOutput(){
+    var out = document.getElementById("outputCode").value;
+    navigator.clipboard.writeText(out).then(function(){
+        document.getElementById("btnCopy").innerText = "✅ Đã Copy!";
+        setTimeout(function(){ document.getElementById("btnCopy").innerText = "📋 Copy Loadstring"; }, 2000);
+    });
+}
+</script>
+</body>
+  </html>
