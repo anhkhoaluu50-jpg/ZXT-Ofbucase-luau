@@ -15,7 +15,7 @@ def init_db():
     conn.close()
 
 def build_lua_loader(encoded):
-    """Tạo mã Lua tự giải mã (Bọc pcall chống lỗi)"""
+    """Tạo mã Lua tự giải mã (Tương thích 100% Roblox Quốc Tế)"""
     chunks = [encoded[i:i+150] for i in range(0, len(encoded), 150)]
     
     parts = []
@@ -44,9 +44,9 @@ def build_lua_loader(encoded):
     parts.append("local _code=_dec(_d)")
     parts.append("_d=nil")
     
-    # Sử dụng load/loadstring và bọc pcall để chạy mượt
+    # Sử dụng load cho Roblox Quốc tế
     parts.append("local _fn=load or loadstring")
-    parts.append("if _fn then pcall(_fn, _code) end")
+    parts.append("if _fn then _fn(_code)() end")
     
     return chr(10).join(parts)
 
@@ -74,10 +74,7 @@ def api_encode():
 
         host = request.host_url.rstrip("/")
         raw_url = host + "/raw/" + script_id
-        
-        # Tạo chuỗi Loadstring chứa toàn bộ code (Offline - Không sợ Render ngủ)
-        standalone_loader = build_lua_loader(encoded)
-        loadstring_url = 'loadstring([==[\n' + standalone_loader + '\n]==])()'
+        loadstring_url = 'loadstring(game:HttpGet("' + raw_url + '"))()'
 
         return jsonify({
             "ok": True,
@@ -100,12 +97,12 @@ def raw_script(script_id):
 
     loader = build_lua_loader(row["code_encrypted"])
 
+    # CHẶN XEM CODE: Nếu là trình duyệt (có chữ Mozilla, Chrome, Safari) thì chặn
     ua = request.headers.get("User-Agent", "").lower()
-    keywords = ["roblox", "delta", "executor", "synapse", "krnl", "fluxus", "codex", "wave", "solara", "xeno", "hydrogen", "argon", "httpget", "http"]
-    
-    if not any(kw in ua for kw in keywords):
+    if "mozilla" in ua or "chrome" in ua or "safari" in ua:
         return render_template("protected.html"), 200
 
+    # Nếu không phải trình duyệt (Delta X, Roblox, Krnl...) thì cho phép đọc code Lua
     return Response(loader, mimetype="text/plain")
 
 if __name__ == "__main__":
