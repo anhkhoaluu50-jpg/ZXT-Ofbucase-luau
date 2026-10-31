@@ -15,8 +15,7 @@ def init_db():
     conn.close()
 
 def build_lua_loader(encoded):
-    """Tạo mã Lua chuẩn chạy trên Delta X"""
-    # Chia nhỏ chuỗi Base64
+    """Tạo mã Lua tự giải mã (Bọc pcall chống lỗi)"""
     chunks = [encoded[i:i+150] for i in range(0, len(encoded), 150)]
     
     parts = []
@@ -26,7 +25,6 @@ def build_lua_loader(encoded):
     parts.append("local _d=table.concat(_c)")
     parts.append("_c=nil")
     
-    # Hàm giải mã Base64
     parts.append("local _b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'")
     parts.append("local function _dec(s)")
     parts.append("s=string.gsub(s,'[^'.._b..'=]','')")
@@ -43,17 +41,12 @@ def build_lua_loader(encoded):
     parts.append("end))")
     parts.append("end")
     
-    # Giải mã
     parts.append("local _code=_dec(_d)")
     parts.append("_d=nil")
     
-    # CƠ CHẾ CHỐNG LỖI CHO DELTA X:
-    # Delta X thường dùng 'load', một số dùng 'loadstring'. Ta ưu tiên 'load'.
-    parts.append("local _fn=load or loadstring") 
-    parts.append("if not _fn then return end")
-    
-    # Bọc pcall để không hiện lỗi đỏ nếu code bên trong có vấn đề
-    parts.append("pcall(_fn, _code)")
+    # Sử dụng load/loadstring và bọc pcall để chạy mượt
+    parts.append("local _fn=load or loadstring")
+    parts.append("if _fn then pcall(_fn, _code) end")
     
     return chr(10).join(parts)
 
@@ -82,8 +75,9 @@ def api_encode():
         host = request.host_url.rstrip("/")
         raw_url = host + "/raw/" + script_id
         
-        # Sử dụng game:HttpGet với cơ chế chống cache
-        loadstring_url = 'loadstring(game:HttpGet("' + raw_url + '?v=" .. os.time()))()'
+        # Tạo chuỗi Loadstring chứa toàn bộ code (Offline - Không sợ Render ngủ)
+        standalone_loader = build_lua_loader(encoded)
+        loadstring_url = 'loadstring([==[\n' + standalone_loader + '\n]==])()'
 
         return jsonify({
             "ok": True,
@@ -106,14 +100,12 @@ def raw_script(script_id):
 
     loader = build_lua_loader(row["code_encrypted"])
 
-    # Kiểm tra User-Agent
     ua = request.headers.get("User-Agent", "").lower()
     keywords = ["roblox", "delta", "executor", "synapse", "krnl", "fluxus", "codex", "wave", "solara", "xeno", "hydrogen", "argon", "httpget", "http"]
     
     if not any(kw in ua for kw in keywords):
         return render_template("protected.html"), 200
 
-    # Trả về mã Lua thô
     return Response(loader, mimetype="text/plain")
 
 if __name__ == "__main__":
