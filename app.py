@@ -15,14 +15,18 @@ def init_db():
     conn.close()
 
 def build_lua_loader(encoded):
-    """Tạo mã Lua từ chuỗi Base64"""
+    """Tạo mã Lua chuẩn chạy trên Delta X"""
+    # Chia nhỏ chuỗi Base64
     chunks = [encoded[i:i+150] for i in range(0, len(encoded), 150)]
+    
     parts = []
     parts.append("local _c={}")
     for chunk in chunks:
         parts.append("_c[#_c+1]='%s'" % chunk)
     parts.append("local _d=table.concat(_c)")
     parts.append("_c=nil")
+    
+    # Hàm giải mã Base64
     parts.append("local _b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'")
     parts.append("local function _dec(s)")
     parts.append("s=string.gsub(s,'[^'.._b..'=]','')")
@@ -31,18 +35,26 @@ def build_lua_loader(encoded):
     parts.append("local r,f='',(_b:find(x,1,true)-1)")
     parts.append("for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0') end")
     parts.append("return r")
-    parts.append("end):gsub('%d%d%d?%d?%d?%d?%d?%d?%d?',function(x)")
+    parts.append("end):gsub('%d%d%d?%d?%d?%d?%d?%d?',function(x)")
     parts.append("if #x~=8 then return '' end")
     parts.append("local c=0")
     parts.append("for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end")
     parts.append("return string.char(c)")
     parts.append("end))")
     parts.append("end")
+    
+    # Giải mã
     parts.append("local _code=_dec(_d)")
     parts.append("_d=nil")
-    parts.append("local _fn=loadstring or load")
+    
+    # CƠ CHẾ CHỐNG LỖI CHO DELTA X:
+    # Delta X thường dùng 'load', một số dùng 'loadstring'. Ta ưu tiên 'load'.
+    parts.append("local _fn=load or loadstring") 
     parts.append("if not _fn then return end")
-    parts.append("_fn(_code)()")
+    
+    # Bọc pcall để không hiện lỗi đỏ nếu code bên trong có vấn đề
+    parts.append("pcall(_fn, _code)")
+    
     return chr(10).join(parts)
 
 @app.route("/")
@@ -69,7 +81,9 @@ def api_encode():
 
         host = request.host_url.rstrip("/")
         raw_url = host + "/raw/" + script_id
-        loadstring_url = 'loadstring(game:HttpGet("' + raw_url + '"))()'
+        
+        # Sử dụng game:HttpGet với cơ chế chống cache
+        loadstring_url = 'loadstring(game:HttpGet("' + raw_url + '?v=" .. os.time()))()'
 
         return jsonify({
             "ok": True,
@@ -92,13 +106,14 @@ def raw_script(script_id):
 
     loader = build_lua_loader(row["code_encrypted"])
 
-    # Chặn người dùng thường xem code
+    # Kiểm tra User-Agent
     ua = request.headers.get("User-Agent", "").lower()
-    keywords = ["roblox", "delta", "executor", "synapse", "krnl", "fluxus", "codex", "wave", "solara", "xeno", "hydrogen", "argon"]
+    keywords = ["roblox", "delta", "executor", "synapse", "krnl", "fluxus", "codex", "wave", "solara", "xeno", "hydrogen", "argon", "httpget", "http"]
     
     if not any(kw in ua for kw in keywords):
         return render_template("protected.html"), 200
 
+    # Trả về mã Lua thô
     return Response(loader, mimetype="text/plain")
 
 if __name__ == "__main__":
