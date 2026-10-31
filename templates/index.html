@@ -30,7 +30,7 @@ h1{font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,var(--cyan
 textarea{width:100%;height:300px;background:#06060b;border:none;padding:16px;color:var(--text);font-family:Consolas,monospace;font-size:13px;resize:vertical;outline:none;line-height:1.6}
 .result-box{background:var(--bg2);border:1px solid var(--green);border-radius:16px;padding:20px;margin-top:16px;display:none}
 .result-box h3{color:var(--cyan);font-size:.85rem;margin-bottom:8px;text-transform:uppercase}
-.link-box{background:#06060b;padding:16px;border-radius:10px;color:#4ade80;font-family:monospace;word-break:break-all;margin-bottom:12px;border-left:3px solid var(--green);font-size:13px}
+.link-box{background:#06060b;padding:16px;border-radius:10px;color:#4ade80;font-family:monospace;word-break:break-all;margin-bottom:12px;border-left:3px solid var(--green);font-size:13px;max-height:150px;overflow-y:auto;}
 </style>
 </head>
 <body>
@@ -54,19 +54,19 @@ textarea{width:100%;height:300px;background:#06060b;border:none;padding:16px;col
 <textarea id="inputCode" placeholder="Dán code vào đây..."></textarea>
 </div>
 <div class="box">
-<div class="box-head"><span>📤 Link Raw & Loadstring</span></div>
-<textarea id="outputCode" readonly placeholder="Kết quả sẽ hiện ở đây..."></textarea>
+<div class="box-head"><span>📤 Link Raw</span></div>
+<textarea id="outputCode" readonly placeholder="Link raw sẽ hiện ở đây..."></textarea>
 </div>
 </div>
 
-<button class="btn btn-primary" id="btnEncode" onclick="encode()">⚡ Tạo Link Raw</button>
+<button class="btn btn-primary" id="btnEncode" onclick="encode()">⚡ Tạo Mã</button>
 
 <div class="result-box" id="resultBox">
-<h3>🔗 Link Raw (Lưu Database)</h3>
+<h3>🔗 Link Raw (Dùng để chia sẻ, bị chặn xem code)</h3>
 <div class="link-box" id="rawUrl"></div>
 <button class="btn btn-secondary" onclick="copyUrl()">📋 Copy Link Raw</button>
 
-<h3 style="margin-top:20px">⚡ Loadstring Cho Delta X</h3>
+<h3 style="margin-top:20px">⚡ Loadstring Độc Lập (Dán vào Delta X là chạy luôn)</h3>
 <div class="link-box" id="loadstringUrl" style="color:#c084fc; border-left-color:var(--purple)"></div>
 <button class="btn btn-success" onclick="copyLoadstring()">📋 Copy Loadstring</button>
 </div>
@@ -103,7 +103,7 @@ async function encode(){
         var data = await res.json();
         
         if(data.ok){
-            document.getElementById("outputCode").value = data.loadstring_url;
+            document.getElementById("outputCode").value = data.raw_url;
             document.getElementById("rawUrl").innerText = data.raw_url;
             document.getElementById("loadstringUrl").innerText = data.loadstring_url;
             document.getElementById("resultBox").style.display = "block";
@@ -113,7 +113,7 @@ async function encode(){
     } catch(e) {
         alert("Lỗi kết nối!");
     } finally {
-        btn.innerText = "⚡ Tạo Link Raw";
+        btn.innerText = "⚡ Tạo Mã";
         btn.disabled = false;
     }
 }
